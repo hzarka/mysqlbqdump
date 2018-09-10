@@ -44,9 +44,9 @@ func main() {
 	flag.BoolVar(&config.DateEpoch, "epoch", true, "output datetime as epoch instead of RFC3339")
 	defaults_file := flag.String("defaults-file", "my.cnf", "defaults file")
 	defaults_group_suffix := flag.String("defaults-group-suffix", "", "defaults group suffix")
-	format := flag.String("format", "json", "output format 'json' or 'csv'")
+	format := flag.String("format", "json", "output format 'json' or 'csv' or 'avro' (experimental)")
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: mysqlcsvdump [options] database table > output.json\n\n")
+		fmt.Fprintf(os.Stderr, "Usage: mysqlbqdump [options] database table > output.json\n\n")
 		fmt.Fprintf(os.Stderr, "Reads connection info from ./my.cnf. Use '-' for table to send query in stdin\n\n")
 		flag.PrintDefaults()
 	}
@@ -61,6 +61,8 @@ func main() {
 	rows := getRows(dsn, args[1])
 	if *format == "json" {
 		NewJsonWriter(&config).WriteRows(rows)
+	} else if *format == "avro" {
+		NewAvroWriter(&config).WriteRows(rows)
 	} else {
 		NewCsvWriter(&config).WriteRows(rows)
 	}

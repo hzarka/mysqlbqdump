@@ -10,6 +10,7 @@ testavro: testbuild
 	./mysqlbqdump --epoch=false --format=avro test test_c  > tmp/test_c.avro
 	fastavro tmp/test_a.avro
 	fastavro tmp/test_b.avro
+	#fastavro tmp/test_c.avro
 
 testjson: testbuild
 	./mysqlbqdump --epoch=false --format=json test test_a > tmp/test_a.json

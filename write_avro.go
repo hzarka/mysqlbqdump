@@ -22,8 +22,6 @@ func (w *AvroWriter) WriteRow(columns []string, converters []convertfn, row []in
 	for i, fn := range converters {
 	    w.row[columns[i]] = fn(row[i])
 	}
-
-	//info("append", w.row)
 	err := w.enc.Append([]interface{}{w.row})
 	handleError(err)
 }
@@ -51,7 +49,6 @@ func (w *AvroWriter) WriteRows(rows *sql.Rows) {
 		w.WriteRow(columnNames, fns, vals)
 	}
 }
-
 
 func createWriter(columnTypes []*sql.ColumnType) ([]convertfn, *goavro.OCFWriter) {
     fns, schema := getAvroSchema(columnTypes)

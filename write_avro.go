@@ -114,11 +114,23 @@ func convert_default(v interface{}) interface{} {
 }
 
 func convert_long(v interface{}) interface{} {
-	return goavro.Union("long", v)
+	switch v := v.(type) {
+	case nil:
+		return nil
+	default:
+		return goavro.Union("long", v)
+	}
+	return nil
 }
 
 func convert_double(v interface{}) interface{} {
-	return goavro.Union("double", v)
+	switch v := v.(type) {
+	case nil:
+		return nil
+	default:
+		return goavro.Union("double", v)
+	}
+	return nil
 }
 
 func convert_decimal(v interface{}) interface{} {
@@ -127,19 +139,22 @@ func convert_decimal(v interface{}) interface{} {
 		r := new(big.Rat)
 		r.SetString(string(v))
 		return goavro.Union("bytes.decimal", r)
+	case nil:
+		return nil
 	default:
-		fatal("bad type", v)
+		fatal("bad type for decimal", v)
 	}
 	return nil
-
 }
 
 func convert_string(v interface{}) interface{} {
 	switch v := v.(type) {
 	case []byte:
 		return goavro.Union("string", v)
+	case nil:
+		return nil
 	default:
-		fatal("bad type", v)
+		fatal("bad type for string", v)
 	}
 	return nil
 }
@@ -148,8 +163,10 @@ func convert_bytes(v interface{}) interface{} {
 	switch v := v.(type) {
 	case []byte:
 		return goavro.Union("bytes", v)
+	case nil:
+		return nil
 	default:
-		fatal("bad type", v)
+		fatal("bad type for bytes", v)
 	}
 	return nil
 }
@@ -158,8 +175,10 @@ func convert_date(v interface{}) interface{} {
 	switch v := v.(type) {
 	case time.Time:
 		return goavro.Union("int.date", v)
+	case nil:
+		return nil
 	default:
-		fatal("bad type", v)
+		fatal("bad type for date", v)
 	}
 	return nil
 }
@@ -168,8 +187,10 @@ func convert_timestamp(v interface{}) interface{} {
 	switch v := v.(type) {
 	case time.Time:
 		return goavro.Union("long.timestamp-millis", v)
+	case nil:
+		return nil
 	default:
-		fatal("bad type", v)
+		fatal("bad type for timestamp", v)
 	}
 	return nil
 }

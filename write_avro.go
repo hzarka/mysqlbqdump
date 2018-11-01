@@ -20,7 +20,7 @@ func NewAvroWriter(config *Config) *AvroWriter {
 
 func (w *AvroWriter) WriteRow(columns []string, converters []convertfn, row []interface{}) {
 	for i, fn := range converters {
-	    w.row[columns[i]] = fn(row[i])
+		w.row[columns[i]] = fn(row[i])
 	}
 	err := w.enc.Append([]interface{}{w.row})
 	handleError(err)
@@ -51,7 +51,7 @@ func (w *AvroWriter) WriteRows(rows *sql.Rows) {
 }
 
 func createWriter(columnTypes []*sql.ColumnType) ([]convertfn, *goavro.OCFWriter) {
-    fns, schema := getAvroSchema(columnTypes)
+	fns, schema := getAvroSchema(columnTypes)
 	config := goavro.OCFConfig{os.Stdout, nil, schema, "snappy", nil}
 	ret, err := goavro.NewOCFWriter(config)
 	handleError(err)
@@ -60,137 +60,136 @@ func createWriter(columnTypes []*sql.ColumnType) ([]convertfn, *goavro.OCFWriter
 }
 
 func getAvroSchema(columnTypes []*sql.ColumnType) ([]convertfn, string) {
-    fns := make([]convertfn, len(columnTypes))
+	fns := make([]convertfn, len(columnTypes))
 
 	var sb strings.Builder
 	sb.WriteString(` { "namespace": "bqdump", "type": "record", "name": "tbl","fields": [ `)
 	for i, ctype := range columnTypes {
-	    if i > 0 {
-		    sb.WriteString(",")
-	    }
-	    fn, s := getAvroTypeFromMysqlType(ctype)
-	    fns[i] = fn
-	    sb.WriteString(fmt.Sprintf(s, ctype.Name()))
+		if i > 0 {
+			sb.WriteString(",")
+		}
+		fn, s := getAvroTypeFromMysqlType(ctype)
+		fns[i] = fn
+		sb.WriteString(fmt.Sprintf(s, ctype.Name()))
 	}
 	sb.WriteString(` ] } `)
 	return fns, sb.String()
 }
 
 func getAvroTypeFromMysqlType(ctype *sql.ColumnType) (convertfn, string) {
-    dbt := strings.ToLower(ctype.DatabaseTypeName())
-    if dbt == "date" {
-	    return typeFns["date"], typeJsons["date"]
-    }
-    if dbt == "datetime" {
-	    return typeFns["timestamp"], typeJsons["timestamp"]
-    }
-    if dbt == "timestamp" {
-	    return typeFns["timestamp"], typeJsons["timestamp"]
-    }
-    if dbt == "decimal" {
-        precision, scale, _ := ctype.DecimalSize()
-	    return typeFns["decimal"], fmt.Sprintf(typeJsons["decimal"], precision, scale)
-    }
-    if dbt == "double" || dbt == "float" {
-	    return typeFns["double"], typeJsons["double"]
-    }
-    if strings.HasSuffix(dbt, "int") {
-	    return typeFns["long"], typeJsons["long"]
-    }
-    if strings.Contains(dbt, "binary") || strings.Contains(dbt, "blob") {
-	    return typeFns["bytes"], typeJsons["bytes"]
-    }
-    if strings.Contains(dbt, "text") || strings.Contains(dbt, "char") || dbt == "json" || dbt == "enum" {
-	    return typeFns["string"], typeJsons["string"]
-    }
-    fatal("unknown type %s", ctype)
-    return nil, ""
+	dbt := strings.ToLower(ctype.DatabaseTypeName())
+	if dbt == "date" {
+		return typeFns["date"], typeJsons["date"]
+	}
+	if dbt == "datetime" {
+		return typeFns["timestamp"], typeJsons["timestamp"]
+	}
+	if dbt == "timestamp" {
+		return typeFns["timestamp"], typeJsons["timestamp"]
+	}
+	if dbt == "decimal" {
+		precision, scale, _ := ctype.DecimalSize()
+		return typeFns["decimal"], fmt.Sprintf(typeJsons["decimal"], precision, scale)
+	}
+	if dbt == "double" || dbt == "float" {
+		return typeFns["double"], typeJsons["double"]
+	}
+	if strings.HasSuffix(dbt, "int") {
+		return typeFns["long"], typeJsons["long"]
+	}
+	if strings.Contains(dbt, "binary") || strings.Contains(dbt, "blob") {
+		return typeFns["bytes"], typeJsons["bytes"]
+	}
+	if strings.Contains(dbt, "text") || strings.Contains(dbt, "char") || dbt == "json" || dbt == "enum" {
+		return typeFns["string"], typeJsons["string"]
+	}
+	fatal("unknown type %s", ctype)
+	return nil, ""
 }
 
 type convertfn func(interface{}) interface{}
 
 func convert_default(v interface{}) interface{} {
-    return nil
+	return nil
 }
 
 func convert_long(v interface{}) interface{} {
-    return goavro.Union("long", v)
+	return goavro.Union("long", v)
 }
 
 func convert_double(v interface{}) interface{} {
-    return goavro.Union("double", v)
+	return goavro.Union("double", v)
 }
 
 func convert_decimal(v interface{}) interface{} {
-    switch v := v.(type) {
+	switch v := v.(type) {
 	case []byte:
-	    r := new(big.Rat)
-	    r.SetString(string(v))
-        return goavro.Union("bytes.decimal", r)
-    default:
-        fatal("bad type", v)
-    }
-    return nil
+		r := new(big.Rat)
+		r.SetString(string(v))
+		return goavro.Union("bytes.decimal", r)
+	default:
+		fatal("bad type", v)
+	}
+	return nil
 
 }
 
 func convert_string(v interface{}) interface{} {
-    switch v := v.(type) {
+	switch v := v.(type) {
 	case []byte:
-        return goavro.Union("string", v)
-    default:
-        fatal("bad type", v)
-    }
-    return nil
+		return goavro.Union("string", v)
+	default:
+		fatal("bad type", v)
+	}
+	return nil
 }
 
 func convert_bytes(v interface{}) interface{} {
-    switch v := v.(type) {
+	switch v := v.(type) {
 	case []byte:
-        return goavro.Union("bytes", v)
-    default:
-        fatal("bad type", v)
-    }
-    return nil
+		return goavro.Union("bytes", v)
+	default:
+		fatal("bad type", v)
+	}
+	return nil
 }
 
 func convert_date(v interface{}) interface{} {
-    switch v := v.(type) {
+	switch v := v.(type) {
 	case time.Time:
-        return goavro.Union("int.date", v)
-    default:
-        fatal("bad type", v)
-    }
-    return nil
+		return goavro.Union("int.date", v)
+	default:
+		fatal("bad type", v)
+	}
+	return nil
 }
 
 func convert_timestamp(v interface{}) interface{} {
-    switch v := v.(type) {
+	switch v := v.(type) {
 	case time.Time:
-        return goavro.Union("long.timestamp-millis", v)
-    default:
-        fatal("bad type", v)
-    }
-    return nil
+		return goavro.Union("long.timestamp-millis", v)
+	default:
+		fatal("bad type", v)
+	}
+	return nil
 }
 
 var typeJsons = map[string]string{
-	"date": ` {"name": "%s",  "type": ["null", {"type": "int", "logicalType": "date"}]} `,
+	"date":      ` {"name": "%s",  "type": ["null", {"type": "int", "logicalType": "date"}]} `,
 	"timestamp": ` {"name": "%s",  "type": ["null", {"type": "long", "logicalType": "timestamp-millis"}]} `,
-	"decimal": ` {"name": "%%s",  "type": ["null", {"type": "bytes", "logicalType": "decimal", "precision": %d, "scale": %d}]} `,
-	"double": ` {"name": "%s",  "type": ["double", "null"]} `,
-	"long": ` {"name": "%s",  "type": ["long", "null"]} `,
-	"bytes": ` {"name": "%s",  "type": ["bytes", "null"]} `,
-	"string": ` {"name": "%s",  "type": ["string", "null"]} `,
+	"decimal":   ` {"name": "%%s",  "type": ["null", {"type": "bytes", "logicalType": "decimal", "precision": %d, "scale": %d}]} `,
+	"double":    ` {"name": "%s",  "type": ["double", "null"]} `,
+	"long":      ` {"name": "%s",  "type": ["long", "null"]} `,
+	"bytes":     ` {"name": "%s",  "type": ["bytes", "null"]} `,
+	"string":    ` {"name": "%s",  "type": ["string", "null"]} `,
 }
 
 var typeFns = map[string]convertfn{
-	"date": convert_date,
+	"date":      convert_date,
 	"timestamp": convert_timestamp,
-	"decimal": convert_decimal,
-	"double": convert_double,
-	"long": convert_long,
-	"bytes": convert_bytes,
-	"string": convert_string,
+	"decimal":   convert_decimal,
+	"double":    convert_double,
+	"long":      convert_long,
+	"bytes":     convert_bytes,
+	"string":    convert_string,
 }
-

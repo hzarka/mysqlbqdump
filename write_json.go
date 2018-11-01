@@ -25,12 +25,12 @@ func (w *JsonWriter) WriteRow(columns []string, columnTypes []*sql.ColumnType, r
 		case bool:
 			w.row[c] = v
 		case []byte:
-		    ctp := columnTypes[i]
-		    if strings.Contains(strings.ToLower(ctp.DatabaseTypeName()), "binary") {
-			    w.row[c] = b64.StdEncoding.EncodeToString(v)
-		    } else {
-			    w.row[c] = string(v)
-		    }
+			ctp := columnTypes[i]
+			if strings.Contains(strings.ToLower(ctp.DatabaseTypeName()), "binary") {
+				w.row[c] = b64.StdEncoding.EncodeToString(v)
+			} else {
+				w.row[c] = string(v)
+			}
 		case time.Time:
 			if w.DateEpoch {
 				w.row[c] = v.Unix()

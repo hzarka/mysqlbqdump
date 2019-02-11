@@ -76,6 +76,15 @@ func getAvroSchema(columnTypes []*sql.ColumnType) ([]convertfn, string) {
 	return fns, sb.String()
 }
 
+// Due to bug (in goavro library? or library misuse here?):
+// - with multiple decimal specifications, only the first spec seems to be used for big.Rat -> bytes encoding
+// - but we write the avro schema correctly for each field
+// - so readers interpret the byte values with incorrect scale/precision
+// - for now, we'll just reuse the first decimal type for all decimal types in the schema
+//
+// This could lead to loss of precision, but better than having wrong values for now
+var FIRST_DECIMAL_TYPE string = "";
+
 func getAvroTypeFromMysqlType(ctype *sql.ColumnType) (convertfn, string) {
 	dbt := strings.ToLower(ctype.DatabaseTypeName())
 	if dbt == "date" {
@@ -89,7 +98,10 @@ func getAvroTypeFromMysqlType(ctype *sql.ColumnType) (convertfn, string) {
 	}
 	if dbt == "decimal" {
 		precision, scale, _ := ctype.DecimalSize()
-		return typeFns["decimal"], fmt.Sprintf(typeJsons["decimal"], precision, scale)
+		if FIRST_DECIMAL_TYPE == "" {
+		    FIRST_DECIMAL_TYPE = fmt.Sprintf(typeJsons["decimal"], precision, scale)
+		}
+		return typeFns["decimal"], FIRST_DECIMAL_TYPE
 	}
 	if dbt == "double" || dbt == "float" {
 		return typeFns["double"], typeJsons["double"]

@@ -10,12 +10,14 @@ import "math/big"
 
 type AvroWriter struct {
 	*Config
-	enc *goavro.OCFWriter
-	row map[string]interface{}
+	numRows  int
+	numFiles int
+	enc      *goavro.OCFWriter
+	row      map[string]interface{}
 }
 
 func NewAvroWriter(config *Config) *AvroWriter {
-	return &AvroWriter{config, nil, make(map[string]interface{})}
+	return &AvroWriter{config, 0, 0, nil, make(map[string]interface{})}
 }
 
 func (w *AvroWriter) WriteRow(columns []string, converters []convertfn, row []interface{}) {
@@ -33,15 +35,23 @@ func (w *AvroWriter) WriteRows(rows *sql.Rows) {
 	columnTypes, err := rows.ColumnTypes()
 	handleError(err)
 
-	fns, writer := createWriter(columnTypes)
-	w.enc = writer
+	fns, schema := getAvroSchema(columnTypes)
+
+	w.enc = w.createWriter(schema)
 
 	vals := make([]interface{}, len(columnNames))
 	scanArgs := make([]interface{}, len(columnNames))
 	for i := 0; i < len(columnNames); i++ {
 		scanArgs[i] = &vals[i]
 	}
+
 	for rows.Next() {
+		if w.OutputFileRowLimit > 0 {
+			if w.numRows >= w.OutputFileRowLimit {
+				w.enc = w.createWriter(schema)
+			}
+			w.numRows += 1
+		}
 		err = rows.Scan(scanArgs...)
 		if err != nil {
 			fatal(err)
@@ -50,13 +60,19 @@ func (w *AvroWriter) WriteRows(rows *sql.Rows) {
 	}
 }
 
-func createWriter(columnTypes []*sql.ColumnType) ([]convertfn, *goavro.OCFWriter) {
-	fns, schema := getAvroSchema(columnTypes)
+func (w *AvroWriter) createWriter(schema string) *goavro.OCFWriter {
 	config := goavro.OCFConfig{os.Stdout, nil, schema, "snappy", nil}
+	if w.OutputFileRowLimit > 0 {
+		w.numFiles += 1
+		w.numRows = 0
+		fp, err := os.Create(w.OutputDir + fmt.Sprintf("/%08d.avro", w.numFiles))
+		handleError(err)
+		config = goavro.OCFConfig{fp, nil, schema, "snappy", nil}
+	}
 	ret, err := goavro.NewOCFWriter(config)
 	handleError(err)
 
-	return fns, ret
+	return ret
 }
 
 func getAvroSchema(columnTypes []*sql.ColumnType) ([]convertfn, string) {
@@ -83,7 +99,7 @@ func getAvroSchema(columnTypes []*sql.ColumnType) ([]convertfn, string) {
 // - for now, we'll just reuse the first decimal type for all decimal types in the schema
 //
 // This could lead to loss of precision, but better than having wrong values for now
-var FIRST_DECIMAL_TYPE string = "";
+var FIRST_DECIMAL_TYPE string = ""
 
 func getAvroTypeFromMysqlType(ctype *sql.ColumnType) (convertfn, string) {
 	dbt := strings.ToLower(ctype.DatabaseTypeName())
@@ -99,7 +115,7 @@ func getAvroTypeFromMysqlType(ctype *sql.ColumnType) (convertfn, string) {
 	if dbt == "decimal" {
 		precision, scale, _ := ctype.DecimalSize()
 		if FIRST_DECIMAL_TYPE == "" {
-		    FIRST_DECIMAL_TYPE = fmt.Sprintf(typeJsons["decimal"], precision, scale)
+			FIRST_DECIMAL_TYPE = fmt.Sprintf(typeJsons["decimal"], precision, scale)
 		}
 		return typeFns["decimal"], FIRST_DECIMAL_TYPE
 	}

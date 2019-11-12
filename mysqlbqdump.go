@@ -14,10 +14,12 @@ type Writer interface {
 }
 
 type Config struct {
-	FieldSep   string
-	RowSep     string
-	NullString string
-	DateEpoch  bool
+	FieldSep           string
+	RowSep             string
+	NullString         string
+	OutputDir          string
+	OutputFileRowLimit int
+	DateEpoch          bool
 }
 
 func getDSN(filename string, section string, database string) string {
@@ -41,6 +43,8 @@ func main() {
 	flag.StringVar(&config.FieldSep, "csv-fields-terminated-by", "\t", "field separator")
 	flag.StringVar(&config.RowSep, "csv-records-terminated-by", "\n", "row separator")
 	flag.StringVar(&config.NullString, "csv-null-string", "\\N", "output string for NULL values")
+	flag.StringVar(&config.OutputDir, "output-dir", "\\N", "output directory")
+	flag.IntVar(&config.OutputFileRowLimit, "output-file-row-limit", 0, "output file row limit")
 	flag.BoolVar(&config.DateEpoch, "epoch", true, "output datetime as epoch instead of RFC3339")
 	defaults_file := flag.String("defaults-file", "my.cnf", "defaults file")
 	defaults_group_suffix := flag.String("defaults-group-suffix", "", "defaults group suffix")
@@ -57,6 +61,18 @@ func main() {
 		flag.Usage()
 		os.Exit(1)
 	}
+
+	if config.OutputFileRowLimit > 0 {
+		if config.OutputDir == "\\N" {
+			log.Fatalln("cant specify output-file-row-limit without output-dir")
+		}
+		if *format != "avro" {
+			log.Fatalln("only avro supported for multi-file export")
+		}
+		err := os.MkdirAll(config.OutputDir, os.ModePerm)
+		handleError(err)
+	}
+
 	dsn := getDSN(*defaults_file, "client"+*defaults_group_suffix, args[0])
 	rows := getRows(dsn, args[1])
 	if *format == "json" {
